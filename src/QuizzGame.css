@@ -1,4 +1,4 @@
-.answer-section{
+.answer-section {
     align-items: center;
     display: flex;
     justify-content: space-around;
@@ -11,6 +11,15 @@
   border: 2px solid black;
   color: black;
   font-size: 1.5rem;
+  text-wrap: nowrap;
+  width: 100rem;
+}
+
+@media (width <= 1250px) {
+  .answer-section button {
+    text-wrap: wrap;
+    width: 15rem;
+  }
 }
 
 @media (width <= 1250px) {
@@ -51,11 +60,13 @@
   font-size: 2rem;
   flex-direction: column;
   padding: 4rem;
+  min-width: 1250px;
 }
 
 
 @media (width <= 1250px) { 
   .quiz-container {
     padding: 1rem;
+    min-width: auto;
   }
 }
