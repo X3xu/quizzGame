@@ -46,7 +46,6 @@ function App() {
 
        {comenzado && (
           <div>
-            <h1>¡Bienvenido, {nombre}!</h1>
             <QuizGame></QuizGame>
           </div>
       )}
