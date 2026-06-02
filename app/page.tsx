@@ -1,65 +1,147 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import StartScreen       from '@/components/StartScreen';
+import QuizGame          from '@/components/QuizGame';
+import ResultsScreen     from '@/components/ResultsScreen';
+import Leaderboard       from '@/components/Leaderboard';
+import AddQuestionScreen from '@/components/AddQuestionScreen';
+import { AnswerRecord, Question } from '@/lib/types';
+import { getRandomQuestions }    from '@/lib/questions';
+import { getQuestionsForGame }   from '@/lib/db-questions';
+import { saveRanking, getRankPosition } from '@/lib/rankings';
+
+type Screen = 'start' | 'quiz' | 'results' | 'leaderboard' | 'addQuestion';
+
+interface GameResult {
+  score:        number;
+  maxStreak:    number;
+  answers:      AnswerRecord[];
+  duration:     number;
+  rankPosition: number;
+  savedId:      string;
+}
 
 export default function Home() {
+  const [screen,     setScreen]     = useState<Screen>('start');
+  const [playerName, setPlayerName] = useState('');
+  const [avatar,     setAvatar]     = useState('🧠');
+  const [questions,  setQuestions]  = useState<Question[]>([]);
+  const [result,     setResult]     = useState<GameResult | null>(null);
+  const [loading,    setLoading]    = useState(false);
+
+  const handleStart = useCallback(async (name: string, av: string) => {
+    setPlayerName(name);
+    setAvatar(av);
+    setLoading(true);
+
+    // Try DB first, fall back to local questions automatically
+    let qs: Question[];
+    try {
+      qs = await getQuestionsForGame(15);
+    } catch {
+      qs = getRandomQuestions(15);
+    }
+
+    setQuestions(qs);
+    setLoading(false);
+    setScreen('quiz');
+  }, []);
+
+  const handleFinish = useCallback((
+    score:     number,
+    maxStreak: number,
+    answers:   AnswerRecord[],
+    duration:  number,
+  ) => {
+    const correct     = answers.filter((a) => a.correct).length;
+    const percentage  = Math.round((correct / answers.length) * 100);
+    const rankPosition = getRankPosition(score);
+
+    const saved = saveRanking({
+      name: playerName, avatar, score,
+      totalQuestions: answers.length, percentage,
+      streak: maxStreak, duration,
+    });
+
+    setResult({ score, maxStreak, answers, duration, rankPosition, savedId: saved.id });
+    setScreen('results');
+  }, [playerName, avatar]);
+
+  const handleReplay = useCallback(async () => {
+    setLoading(true);
+    let qs: Question[];
+    try {
+      qs = await getQuestionsForGame(15);
+    } catch {
+      qs = getRandomQuestions(15);
+    }
+    setQuestions(qs);
+    setLoading(false);
+    setResult(null);
+    setScreen('quiz');
+  }, []);
+
+  // Show a brief loading overlay while fetching questions from DB
+  if (loading) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-[var(--color-canvas)]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+        <p className="text-sm text-[var(--color-muted)]">Cargando preguntas…</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <AnimatePresence mode="wait">
+      {screen === 'start' && (
+        <StartScreen
+          key="start"
+          onStart={handleStart}
+          onAddQuestion={() => setScreen('addQuestion')}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+
+      {screen === 'quiz' && (
+        <QuizGame
+          key="quiz"
+          questions={questions}
+          playerName={playerName}
+          avatar={avatar}
+          onFinish={handleFinish}
+        />
+      )}
+
+      {screen === 'results' && result && (
+        <ResultsScreen
+          key="results"
+          playerName={playerName}
+          avatar={avatar}
+          score={result.score}
+          maxStreak={result.maxStreak}
+          answers={result.answers}
+          duration={result.duration}
+          rankPosition={result.rankPosition}
+          onReplay={handleReplay}
+          onLeaderboard={() => setScreen('leaderboard')}
+        />
+      )}
+
+      {screen === 'leaderboard' && (
+        <Leaderboard
+          key="leaderboard"
+          onBack={() => setScreen(result ? 'results' : 'start')}
+          highlightId={result?.savedId}
+        />
+      )}
+
+      {screen === 'addQuestion' && (
+        <AddQuestionScreen
+          key="addQuestion"
+          onBack={() => setScreen('start')}
+        />
+      )}
+    </AnimatePresence>
   );
 }

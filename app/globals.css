@@ -1,26 +1,194 @@
 @import "tailwindcss";
+@source "../app/**/*.{tsx,ts,jsx,js}";
+@source "../components/**/*.{tsx,ts,jsx,js}";
+@source "../lib/**/*.{tsx,ts,jsx,js}";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ─── Design tokens ─── */
+@theme {
+  --color-canvas:      #09090f;
+  --color-surface:     rgba(255 255 255 / 0.04);
+  --color-surface-md:  rgba(255 255 255 / 0.07);
+  --color-border:      rgba(255 255 255 / 0.09);
+  --color-border-md:   rgba(255 255 255 / 0.16);
+
+  --color-violet-950:  #1e0a40;
+  --color-ink:         #f2f2ff;
+  --color-muted:       #8b8baa;
+  --color-subtle:      #4a4a6a;
+
+  --radius-card:  1.25rem;
+  --radius-btn:   0.75rem;
+  --radius-pill:  9999px;
+
+  --shadow-card:  0 0 0 1px rgba(255 255 255 / 0.06),
+                  0 8px 32px rgba(0 0 0 / 0.4);
+  --shadow-glow:  0 0 40px rgba(139 92 246 / 0.25);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ─── Global base styles (inside @layer base so Tailwind utilities can override) ─── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-inter, system-ui, -apple-system, sans-serif);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  :focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 3px;
+    border-radius: 4px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar        { width: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: #4c1d95; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #6d28d9; }
+
+/* ─── Background grid ─── */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(139 92 246 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139 92 246 / 0.07) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* ─── Timer bar ─── */
+/*
+  Inline `style` drives the width; this class drives the transition.
+  Must live in CSS — Tailwind can't target `transition-[width]` with
+  a variable duration without arbitrary values everywhere.
+*/
+.timer-track {
+  height: 6px;
+  background: rgba(255 255 255 / 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.timer-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.95s linear, background-color 0.4s ease;
+  will-change: width;
+}
+
+/* ─── Answer button states (data-attribute driven, no !important) ─── */
+/*
+  Using data attributes keeps the source of truth in JSX state
+  and avoids specificity fights entirely.
+*/
+.answer-option {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;    /* override button's UA text-align: center */
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  padding: 1.125rem 1.25rem;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: border-color 0.18s ease,
+              background-color 0.18s ease,
+              transform 0.15s ease,
+              box-shadow 0.18s ease;
+}
+
+/* Text label inside the button — spans the remaining flex space */
+.answer-option .answer-label {
+  flex: 1;
+  text-align: left;
+}
+
+.answer-option:hover:not(:disabled) {
+  border-color: rgba(139 92 246 / 0.55);
+  background: rgba(139 92 246 / 0.09);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(139 92 246 / 0.18);
+}
+
+.answer-option:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.answer-option[data-state="correct"] {
+  border-color: #10b981;
+  background: rgba(16 185 129 / 0.12);
+  box-shadow: 0 0 18px rgba(16 185 129 / 0.22);
+}
+
+.answer-option[data-state="incorrect"] {
+  border-color: #ef4444;
+  background: rgba(239 68 68 / 0.12);
+  box-shadow: 0 0 18px rgba(239 68 68 / 0.22);
+}
+
+.answer-option[data-state="revealed"] {
+  border-color: rgba(16 185 129 / 0.5);
+  background: rgba(16 185 129 / 0.06);
+}
+
+.answer-option:disabled {
+  cursor: not-allowed;
+}
+
+/* ─── Float animation for the brain icon ─── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ─── Stagger entry animations (CSS, no JS library delays) ─── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(1rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.anim-fade-up {
+  animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-delay-1 { animation-delay: 0.08s; }
+.anim-delay-2 { animation-delay: 0.16s; }
+.anim-delay-3 { animation-delay: 0.24s; }
+.anim-delay-4 { animation-delay: 0.32s; }
+.anim-delay-5 { animation-delay: 0.40s; }
+
+/* ─── Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }
