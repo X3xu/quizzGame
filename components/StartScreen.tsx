@@ -3,6 +3,7 @@
 import { FormEvent, useId, useState } from 'react';
 import { Brain, Clock, Loader2, Plus, RefreshCw, Trophy, Zap } from 'lucide-react';
 import { AVATARS } from '@/lib/questions';
+import { getModerationError } from '@/lib/moderation';
 import AppShell from './AppShell';
 import Button   from './ui/Button';
 import Card     from './ui/Card';
@@ -34,6 +35,12 @@ export default function StartScreen({ onStart, onAddQuestion }: StartScreenProps
     const trimmed = name.trim();
     if (!trimmed) {
       setError('Escribe tu nombre para continuar');
+      document.getElementById(inputId)?.focus();
+      return;
+    }
+    const moderationErr = getModerationError(trimmed);
+    if (moderationErr) {
+      setError(moderationErr);
       document.getElementById(inputId)?.focus();
       return;
     }

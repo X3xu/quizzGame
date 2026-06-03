@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, Flame, Target, Trash2, Trophy } from 'lucide-react';
+import { ArrowLeft, Clock, Flame, Target, Trash2, Trophy, X } from 'lucide-react';
 import { RankingEntry } from '@/lib/types';
 import { clearRankings, getRankings } from '@/lib/rankings';
 import Button   from './ui/Button';
@@ -25,7 +25,7 @@ const RANK_STYLES: Record<1 | 2 | 3, RankStyle> = {
 };
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -33,19 +33,22 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-interface PodiumCardProps { entry: RankingEntry; rank: 1 | 2 | 3; highlighted: boolean; }
+interface PodiumCardProps { entry: RankingEntry; rank: 1 | 2 | 3; highlighted: boolean; onClick: () => void; }
 
-function PodiumCard({ entry, rank, highlighted }: PodiumCardProps) {
+function PodiumCard({ entry, rank, highlighted, onClick }: PodiumCardProps) {
   const { border, text, ring } = RANK_STYLES[rank];
   return (
     <Card
       padding="sm"
+      as="button"
+      onClick={onClick}
       className={[
-        'border text-center transition-transform',
+        'border text-center transition-all cursor-pointer hover:scale-105 hover:ring-1 hover:ring-violet-500/40 w-full',
         border,
         rank === 1 ? '-translate-y-3' : '',
         highlighted ? `ring-2 ${ring}` : '',
       ].join(' ')}
+      aria-label={`Ver detalles de ${entry.name}`}
     >
       <p aria-hidden="true" className="mb-1 text-3xl">{MEDALS[rank]}</p>
       <p aria-hidden="true" className="mb-1 text-xl leading-none">{entry.avatar}</p>
@@ -56,9 +59,69 @@ function PodiumCard({ entry, rank, highlighted }: PodiumCardProps) {
   );
 }
 
+interface PlayerDetailModalProps {
+  entry: RankingEntry | null;
+  rank:  number;
+  onClose: () => void;
+}
+
+function PlayerDetailModal({ entry, rank, onClose }: PlayerDetailModalProps) {
+  if (!entry) return null;
+  const isTop = rank <= 3;
+  const rs    = isTop ? RANK_STYLES[rank as 1 | 2 | 3] : null;
+
+  const stats = [
+    { label: 'Puntuación',     value: `${entry.score} pts`,              icon: '🏆' },
+    { label: 'Precisión',      value: `${entry.percentage}%`,            icon: '🎯' },
+    { label: 'Racha máxima',   value: `×${entry.streak}`,                icon: '🔥' },
+    { label: 'Duración total', value: formatDuration(entry.duration),    icon: '⏱️' },
+    { label: 'Preguntas',      value: `${entry.totalQuestions}`,         icon: '📋' },
+    { label: 'Fecha',          value: formatDate(entry.date),            icon: '📅' },
+  ];
+
+  return (
+    <Modal open onClose={onClose} title={`Detalles de ${entry.name}`}>
+      <div className="space-y-5">
+        {/* Player header */}
+        <div className="flex flex-col items-center gap-2 pb-4 border-b border-[var(--color-border)]">
+          <span className="text-5xl leading-none">{entry.avatar}</span>
+          <div className="text-center">
+            <p className="text-lg font-bold text-[var(--color-ink)]">{entry.name}</p>
+            <p className={`text-sm font-semibold ${rs ? rs.text : 'text-[var(--color-muted)]'}`}>
+              {isTop ? MEDALS[rank as 1 | 2 | 3] : `#${rank}`} — Posición #{rank}
+            </p>
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <dl className="grid grid-cols-2 gap-3">
+          {stats.map(({ label, value, icon }) => (
+            <div
+              key={label}
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+            >
+              <dt className="flex items-center gap-1.5 text-[11px] text-[var(--color-subtle)] mb-1">
+                <span aria-hidden="true">{icon}</span>
+                {label}
+              </dt>
+              <dd className="text-sm font-bold text-[var(--color-ink)]">{value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <Button variant="ghost" size="md" fullWidth onClick={onClose}
+                icon={<X className="h-4 w-4" />}>
+          Cerrar
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
   const [rankings,     setRankings]     = useState<RankingEntry[]>([]);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [selected,     setSelected]     = useState<{ entry: RankingEntry; rank: number } | null>(null);
   const modalTitleId = useId();
 
   useEffect(() => { setRankings(getRankings()); }, []);
@@ -91,6 +154,9 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
               </h1>
               <p className="text-xs text-[var(--color-muted)]">
                 {rankings.length} {rankings.length === 1 ? 'jugador' : 'jugadores'}
+                {rankings.length > 0 && (
+                  <span className="ml-1 text-[var(--color-subtle)]">· haz clic para ver detalles</span>
+                )}
               </p>
             </div>
             <Button
@@ -120,9 +186,12 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
               aria-label="Podio top 3"
               className="anim-fade-up anim-delay-1 mb-5 grid grid-cols-3 items-end gap-2.5"
             >
-              <PodiumCard entry={rankings[1]} rank={2} highlighted={rankings[1].id === highlightId} />
-              <PodiumCard entry={rankings[0]} rank={1} highlighted={rankings[0].id === highlightId} />
-              <PodiumCard entry={rankings[2]} rank={3} highlighted={rankings[2].id === highlightId} />
+              <PodiumCard entry={rankings[1]} rank={2} highlighted={rankings[1].id === highlightId}
+                          onClick={() => setSelected({ entry: rankings[1], rank: 2 })} />
+              <PodiumCard entry={rankings[0]} rank={1} highlighted={rankings[0].id === highlightId}
+                          onClick={() => setSelected({ entry: rankings[0], rank: 1 })} />
+              <PodiumCard entry={rankings[2]} rank={3} highlighted={rankings[2].id === highlightId}
+                          onClick={() => setSelected({ entry: rankings[2], rank: 3 })} />
             </section>
           )}
 
@@ -145,11 +214,15 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
                   >
                     <Card
                       padding="none"
+                      as="button"
+                      onClick={() => setSelected({ entry, rank })}
                       className={[
-                        'flex items-center gap-3 px-4 py-3',
+                        'flex w-full items-center gap-3 px-4 py-3 text-left cursor-pointer',
+                        'transition-all hover:ring-1 hover:ring-violet-500/30 hover:bg-violet-500/5',
                         rs  ? `border ${rs.border}` : '',
                         isHighlighted ? 'ring-1 ring-violet-500/40' : '',
                       ].join(' ')}
+                      aria-label={`Ver detalles de ${entry.name}, posición ${rank}`}
                     >
                       <div className="w-7 shrink-0 text-center" aria-hidden="true">
                         {isTop
@@ -195,6 +268,13 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
           )}
       </div>
       </div>
+
+      {/* ── Player detail modal ── */}
+      <PlayerDetailModal
+        entry={selected?.entry ?? null}
+        rank={selected?.rank ?? 0}
+        onClose={() => setSelected(null)}
+      />
 
       <Modal
         open={confirmClear}
