@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { RankingEntry } from '../lib/types';
 
+// Each leaderboard test needs more time: 15 questions × ~1.3 s + UI overhead
+test.setTimeout(90_000);
+
 const MOCK_RANKINGS: RankingEntry[] = [
   {
     id: 'a1', name: 'Alice', avatar: '🦊', score: 15, totalQuestions: 15,
@@ -19,15 +22,6 @@ const MOCK_RANKINGS: RankingEntry[] = [
 test.describe('Ranking Global', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    // Seed localStorage with mock rankings
-    await page.evaluate((rankings) => {
-      localStorage.setItem('brainwave_rankings', JSON.stringify(rankings));
-    }, MOCK_RANKINGS);
-
-    // Navigate to leaderboard: click the trophy/ranking button in start screen
-    // Since leaderboard is accessed from results screen or directly,
-    // we trigger it via the start screen context hint
-    await page.goto('/');
     await page.evaluate((rankings) => {
       localStorage.setItem('brainwave_rankings', JSON.stringify(rankings));
     }, MOCK_RANKINGS);
@@ -37,9 +31,9 @@ test.describe('Ranking Global', () => {
     await navigateToLeaderboard(page);
 
     await expect(page.getByText('Ranking Global')).toBeVisible();
-    await expect(page.getByText('Alice')).toBeVisible();
-    await expect(page.getByText('Bob')).toBeVisible();
-    await expect(page.getByText('Carol')).toBeVisible();
+    await expect(page.getByText('Alice').first()).toBeVisible();
+    await expect(page.getByText('Bob').first()).toBeVisible();
+    await expect(page.getByText('Carol').first()).toBeVisible();
   });
 
   test('el podio muestra top 3', async ({ page }) => {
@@ -55,14 +49,14 @@ test.describe('Ranking Global', () => {
   test('clic en un jugador abre modal de detalles', async ({ page }) => {
     await navigateToLeaderboard(page);
 
-    // Click on the first row (Alice)
     await page.getByRole('button', { name: /Ver detalles de Alice/ }).first().click();
 
-    // Modal should open with player details
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('dialog').getByText('Alice')).toBeVisible();
-    await expect(page.getByRole('dialog').getByText('15 pts')).toBeVisible();
-    await expect(page.getByRole('dialog').getByText('100%')).toBeVisible();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    // Use the visible name paragraph (not the sr-only heading)
+    await expect(dialog.locator('p.text-lg.font-bold')).toContainText('Alice');
+    await expect(dialog.getByText('15 pts')).toBeVisible();
+    await expect(dialog.getByText('100%').first()).toBeVisible();
   });
 
   test('el modal se cierra al hacer clic en Cerrar', async ({ page }) => {
@@ -92,7 +86,7 @@ test.describe('Ranking Global', () => {
     await podium.getByRole('button', { name: /Ver detalles de Alice/ }).click();
 
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('dialog').getByText('Alice')).toBeVisible();
+    await expect(page.getByRole('dialog').locator('p.text-lg.font-bold')).toContainText('Alice');
   });
 
   test('se puede borrar el ranking', async ({ page }) => {
@@ -108,34 +102,32 @@ test.describe('Ranking Global', () => {
 });
 
 async function navigateToLeaderboard(page: import('@playwright/test').Page) {
-  // Go through quiz to results then leaderboard
-  // Alternative: inject the screen state. We use direct navigation by simulating
-  // game completion via localStorage state + UI interaction.
+  // Re-seed rankings after navigation (beforeEach runs on original page.goto)
+  await page.evaluate((rankings) => {
+    localStorage.setItem('brainwave_rankings', JSON.stringify(rankings));
+  }, MOCK_RANKINGS);
 
-  // The simplest path: play a quick game using the name field
+  // Start a game
   await page.getByPlaceholder('¿Cómo te llamas?').fill('TestUser');
   await page.getByRole('button', { name: 'Empezar el Quiz' }).click();
 
-  // Wait for quiz screen to load, then auto-answer all questions
-  await page.waitForTimeout(500);
-
-  // Answer 15 questions by clicking first answer option each time
+  // Answer all 15 questions — wait for each .answer-option, click, wait for next
   for (let i = 0; i < 15; i++) {
     const option = page.locator('.answer-option').first();
-    const visible = await option.isVisible().catch(() => false);
-    if (visible) {
+    try {
+      await option.waitFor({ state: 'visible', timeout: 18_000 });
       await option.click();
-      await page.waitForTimeout(1800);
-    } else {
+      // 1100 ms transition + small buffer
+      await page.waitForTimeout(1300);
+    } catch {
+      // Question may have been auto-timed-out or we're already on results
       break;
     }
   }
 
-  // Wait for results screen ("Ver ranking completo" button appears)
-  await page.waitForSelector('button:has-text("Ver ranking")', { timeout: 20_000 });
-
-  // Click "Ver ranking completo" to go to leaderboard
-  await page.getByRole('button', { name: /Ver ranking/i }).click();
+  // Wait for results screen (button "Ver ranking completo" appears)
+  await page.waitForSelector('button:has-text("Ver ranking completo")', { timeout: 30_000 });
+  await page.getByRole('button', { name: 'Ver ranking completo' }).click();
 
   await expect(page.getByText('Ranking Global')).toBeVisible({ timeout: 5_000 });
 }
