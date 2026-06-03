@@ -9,17 +9,18 @@ import Button   from './ui/Button';
 import Card     from './ui/Card';
 
 interface StartScreenProps {
-  onStart:       (name: string, avatar: string) => void;
-  onAddQuestion: () => void;
+  onStart:        (name: string, avatar: string) => void;
+  onAddQuestion:  () => void;
+  onLeaderboard:  () => void;
 }
 
 const FEATURES = [
-  { icon: Brain,  label: '15 preguntas',   sublabel: 'aleatorias cada partida', color: 'text-violet-400' },
-  { icon: Clock,  label: '15 seg',         sublabel: 'por pregunta',            color: 'text-cyan-400'   },
-  { icon: Trophy, label: 'Ranking global', sublabel: 'compite con todos',       color: 'text-amber-400'  },
+  { icon: Brain,  label: '15 preguntas',   sublabel: 'aleatorias cada partida', color: 'text-violet-400', onClick: null        },
+  { icon: Clock,  label: '15 seg',         sublabel: 'por pregunta',            color: 'text-cyan-400',   onClick: null        },
+  { icon: Trophy, label: 'Ranking global', sublabel: 'compite con todos',       color: 'text-amber-400',  onClick: 'leaderboard' },
 ] as const;
 
-export default function StartScreen({ onStart, onAddQuestion }: StartScreenProps) {
+export default function StartScreen({ onStart, onAddQuestion, onLeaderboard }: StartScreenProps) {
   const [name,        setName]        = useState('');
   const [avatar,      setAvatar]      = useState(AVATARS[0]);
   const [error,       setError]       = useState('');
@@ -97,9 +98,18 @@ export default function StartScreen({ onStart, onAddQuestion }: StartScreenProps
 
             {/* Feature chips */}
             <ul role="list" className="anim-fade-up anim-delay-1 grid w-full grid-cols-3 gap-3">
-              {FEATURES.map(({ icon: Icon, label, sublabel, color }) => (
+              {FEATURES.map(({ icon: Icon, label, sublabel, color, onClick }) => (
                 <li key={label}>
-                  <Card padding="md" className="text-center">
+                  <Card
+                    padding="md"
+                    as={onClick ? 'button' : 'div'}
+                    onClick={onClick ? onLeaderboard : undefined}
+                    aria-label={onClick ? 'Ver ranking global' : undefined}
+                    className={[
+                      'text-center w-full',
+                      onClick ? 'cursor-pointer transition-all hover:ring-1 hover:ring-amber-500/40 hover:scale-[1.03]' : '',
+                    ].join(' ')}
+                  >
                     <Icon className={`mx-auto mb-2 h-5 w-5 ${color}`} aria-hidden="true" strokeWidth={1.75} />
                     <p className="text-xs font-bold text-[var(--color-ink)]">{label}</p>
                     <p className="mt-0.5 text-[10px] text-[var(--color-muted)]">{sublabel}</p>

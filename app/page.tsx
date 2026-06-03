@@ -100,6 +100,7 @@ export default function Home() {
           key="start"
           onStart={handleStart}
           onAddQuestion={() => setScreen('addQuestion')}
+          onLeaderboard={() => setScreen('leaderboard')}
         />
       )}
 
