@@ -15,7 +15,7 @@ export default withSentryConfig(nextConfig, {
   // Disable source map upload unless SENTRY_AUTH_TOKEN is set
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: !process.env.SENTRY_AUTH_TOKEN,
-  // Don't add Sentry to the bundle if DSN is not configured
-  disableLogger: true,
   widenClientFileUpload: true,
+  // Tree-shake Sentry debug logging from production bundles
+  webpack: { treeshake: { removeDebugLogging: true } },
 });

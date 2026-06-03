@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { AnswerRecord, Question } from '@/lib/types';
 import { getRandomQuestions }  from '@/lib/questions';
 import { getQuestionsForGame } from '@/lib/db-questions';
-import { getRankings }         from '@/lib/rankings';
 import { getDeviceId }         from '@/lib/device-id';
 
 export type Screen = 'start' | 'quiz' | 'results' | 'leaderboard' | 'addQuestion';
