@@ -36,7 +36,6 @@ export default function Home() {
     setAvatar(av);
     setLoading(true);
 
-    // Try DB first, fall back to local questions automatically
     let qs: Question[];
     try {
       qs = await getQuestionsForGame(15);
@@ -49,21 +48,24 @@ export default function Home() {
     setScreen('quiz');
   }, []);
 
-  const handleFinish = useCallback((
+  const handleFinish = useCallback(async (
     score:     number,
     maxStreak: number,
     answers:   AnswerRecord[],
     duration:  number,
   ) => {
-    const correct     = answers.filter((a) => a.correct).length;
-    const percentage  = Math.round((correct / answers.length) * 100);
-    const rankPosition = getRankPosition(score);
+    const correct    = answers.filter((a) => a.correct).length;
+    const percentage = Math.round((correct / answers.length) * 100);
 
-    const saved = saveRanking({
-      name: playerName, avatar, score,
-      totalQuestions: answers.length, percentage,
-      streak: maxStreak, duration,
-    });
+    // Both calls are now async (Supabase or localStorage fallback)
+    const [rankPosition, saved] = await Promise.all([
+      getRankPosition(score),
+      saveRanking({
+        name: playerName, avatar, score,
+        totalQuestions: answers.length, percentage,
+        streak: maxStreak, duration,
+      }),
+    ]);
 
     setResult({ score, maxStreak, answers, duration, rankPosition, savedId: saved.id });
     setScreen('results');
@@ -83,7 +85,6 @@ export default function Home() {
     setScreen('quiz');
   }, []);
 
-  // Show a brief loading overlay while fetching questions from DB
   if (loading) {
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-[var(--color-canvas)]">

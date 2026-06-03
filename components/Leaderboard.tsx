@@ -124,10 +124,10 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
   const [selected,     setSelected]     = useState<{ entry: RankingEntry; rank: number } | null>(null);
   const modalTitleId = useId();
 
-  useEffect(() => { setRankings(getRankings()); }, []);
+  useEffect(() => { getRankings().then(setRankings); }, []);
 
-  function handleClear() {
-    clearRankings();
+  async function handleClear() {
+    await clearRankings();
     setRankings([]);
     setConfirmClear(false);
   }
