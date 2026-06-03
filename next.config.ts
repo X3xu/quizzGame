@@ -1,5 +1,21 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // Silence Sentry telemetry in CI
+  env: {
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
+  },
+};
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Sentry organisation/project (fill in after creating a Sentry project)
+  org:     process.env.SENTRY_ORG     ?? '',
+  project: process.env.SENTRY_PROJECT ?? '',
+  // Disable source map upload unless SENTRY_AUTH_TOKEN is set
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  // Don't add Sentry to the bundle if DSN is not configured
+  disableLogger: true,
+  widenClientFileUpload: true,
+});

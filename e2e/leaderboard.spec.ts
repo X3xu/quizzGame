@@ -108,12 +108,12 @@ async function navigateToLeaderboard(page: import('@playwright/test').Page) {
   }, MOCK_RANKINGS);
 
   // Start a game
-  await page.getByPlaceholder('¿Cómo te llamas?').fill('TestUser');
-  await page.getByRole('button', { name: 'Empezar el Quiz' }).click();
+  await page.getByTestId('name-input').fill('TestUser');
+  await page.getByTestId('start-btn').click();
 
-  // Answer all 15 questions — wait for each .answer-option, click, wait for next
+  // Answer all 15 questions — wait for each answer option, click, wait for next
   for (let i = 0; i < 15; i++) {
-    const option = page.locator('.answer-option').first();
+    const option = page.getByTestId('answer-option-0');
     try {
       await option.waitFor({ state: 'visible', timeout: 18_000 });
       await option.click();
@@ -125,9 +125,9 @@ async function navigateToLeaderboard(page: import('@playwright/test').Page) {
     }
   }
 
-  // Wait for results screen (button "Ver ranking completo" appears)
-  await page.waitForSelector('button:has-text("Ver ranking completo")', { timeout: 30_000 });
-  await page.getByRole('button', { name: 'Ver ranking completo' }).click();
+  // Wait for results screen
+  await page.waitForSelector('[data-testid="view-leaderboard-btn"]', { timeout: 30_000 });
+  await page.getByTestId('view-leaderboard-btn').click();
 
   await expect(page.getByText('Ranking Global')).toBeVisible({ timeout: 5_000 });
 }

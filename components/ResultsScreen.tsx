@@ -151,6 +151,7 @@ export default function ResultsScreen({
               variant="ghost"
               size="lg"
               fullWidth
+              data-testid="view-leaderboard-btn"
               icon={<List className="h-4 w-4 text-violet-400" />}
               onClick={onLeaderboard}
             >

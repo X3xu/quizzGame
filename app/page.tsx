@@ -1,93 +1,28 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import StartScreen       from '@/components/StartScreen';
 import QuizGame          from '@/components/QuizGame';
 import ResultsScreen     from '@/components/ResultsScreen';
 import Leaderboard       from '@/components/Leaderboard';
 import AddQuestionScreen from '@/components/AddQuestionScreen';
-import { AnswerRecord, Question } from '@/lib/types';
-import { getRandomQuestions }    from '@/lib/questions';
-import { getQuestionsForGame }   from '@/lib/db-questions';
-import { saveRanking, getRankPosition } from '@/lib/rankings';
-
-type Screen = 'start' | 'quiz' | 'results' | 'leaderboard' | 'addQuestion';
-
-interface GameResult {
-  score:        number;
-  maxStreak:    number;
-  answers:      AnswerRecord[];
-  duration:     number;
-  rankPosition: number;
-  savedId:      string;
-}
+import { useGameFlow }   from '@/hooks/useGameFlow';
 
 export default function Home() {
-  const [screen,     setScreen]     = useState<Screen>('start');
-  const [playerName, setPlayerName] = useState('');
-  const [avatar,     setAvatar]     = useState('🧠');
-  const [questions,  setQuestions]  = useState<Question[]>([]);
-  const [result,     setResult]     = useState<GameResult | null>(null);
-  const [loading,    setLoading]    = useState(false);
-
-  const handleStart = useCallback(async (name: string, av: string) => {
-    setPlayerName(name);
-    setAvatar(av);
-    setLoading(true);
-
-    let qs: Question[];
-    try {
-      qs = await getQuestionsForGame(15);
-    } catch {
-      qs = getRandomQuestions(15);
-    }
-
-    setQuestions(qs);
-    setLoading(false);
-    setScreen('quiz');
-  }, []);
-
-  const handleFinish = useCallback(async (
-    score:     number,
-    maxStreak: number,
-    answers:   AnswerRecord[],
-    duration:  number,
-  ) => {
-    const correct    = answers.filter((a) => a.correct).length;
-    const percentage = Math.round((correct / answers.length) * 100);
-
-    // Both calls are now async (Supabase or localStorage fallback)
-    const [rankPosition, saved] = await Promise.all([
-      getRankPosition(score),
-      saveRanking({
-        name: playerName, avatar, score,
-        totalQuestions: answers.length, percentage,
-        streak: maxStreak, duration,
-      }),
-    ]);
-
-    setResult({ score, maxStreak, answers, duration, rankPosition, savedId: saved.id });
-    setScreen('results');
-  }, [playerName, avatar]);
-
-  const handleReplay = useCallback(async () => {
-    setLoading(true);
-    let qs: Question[];
-    try {
-      qs = await getQuestionsForGame(15);
-    } catch {
-      qs = getRandomQuestions(15);
-    }
-    setQuestions(qs);
-    setLoading(false);
-    setResult(null);
-    setScreen('quiz');
-  }, []);
+  const {
+    screen, playerName, avatar, questions, result, loading,
+    startGame, finishGame, replayGame,
+    goToLeaderboard, goToAddQuestion,
+    backFromLeaderboard, backFromAddQuestion,
+  } = useGameFlow();
 
   if (loading) {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-[var(--color-canvas)]">
+      <div
+        role="status"
+        aria-label="Cargando preguntas"
+        className="flex h-dvh flex-col items-center justify-center gap-3 bg-[var(--color-canvas)]"
+      >
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
         <p className="text-sm text-[var(--color-muted)]">Cargando preguntas…</p>
       </div>
@@ -99,9 +34,9 @@ export default function Home() {
       {screen === 'start' && (
         <StartScreen
           key="start"
-          onStart={handleStart}
-          onAddQuestion={() => setScreen('addQuestion')}
-          onLeaderboard={() => setScreen('leaderboard')}
+          onStart={startGame}
+          onAddQuestion={goToAddQuestion}
+          onLeaderboard={goToLeaderboard}
         />
       )}
 
@@ -111,7 +46,7 @@ export default function Home() {
           questions={questions}
           playerName={playerName}
           avatar={avatar}
-          onFinish={handleFinish}
+          onFinish={finishGame}
         />
       )}
 
@@ -125,15 +60,15 @@ export default function Home() {
           answers={result.answers}
           duration={result.duration}
           rankPosition={result.rankPosition}
-          onReplay={handleReplay}
-          onLeaderboard={() => setScreen('leaderboard')}
+          onReplay={replayGame}
+          onLeaderboard={goToLeaderboard}
         />
       )}
 
       {screen === 'leaderboard' && (
         <Leaderboard
           key="leaderboard"
-          onBack={() => setScreen(result ? 'results' : 'start')}
+          onBack={backFromLeaderboard}
           highlightId={result?.savedId}
         />
       )}
@@ -141,7 +76,7 @@ export default function Home() {
       {screen === 'addQuestion' && (
         <AddQuestionScreen
           key="addQuestion"
-          onBack={() => setScreen('start')}
+          onBack={backFromAddQuestion}
         />
       )}
     </AnimatePresence>

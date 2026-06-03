@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-// Next.js injects a route announcer <div role="alert"> — target only our <p role="alert">
-const errorAlert = (page: import('@playwright/test').Page) =>
-  page.locator('p[role="alert"]');
+const nameInput  = (page: import('@playwright/test').Page) => page.getByTestId('name-input');
+const startBtn   = (page: import('@playwright/test').Page) => page.getByTestId('start-btn');
+const errorAlert = (page: import('@playwright/test').Page) => page.locator('p[role="alert"]');
 
 test.describe('Pantalla de inicio', () => {
   test.beforeEach(async ({ page }) => {
@@ -11,12 +11,12 @@ test.describe('Pantalla de inicio', () => {
 
   test('muestra el título y el formulario', async ({ page }) => {
     await expect(page.getByText('¿Listo para jugar?')).toBeVisible();
-    await expect(page.getByPlaceholder('¿Cómo te llamas?')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Empezar el Quiz' })).toBeVisible();
+    await expect(nameInput(page)).toBeVisible();
+    await expect(startBtn(page)).toBeVisible();
   });
 
   test('muestra error al intentar empezar sin nombre', async ({ page }) => {
-    await page.getByRole('button', { name: 'Empezar el Quiz' }).click();
+    await startBtn(page).click();
     await expect(errorAlert(page)).toContainText('Escribe tu nombre');
   });
 
@@ -29,8 +29,8 @@ test.describe('Pantalla de inicio', () => {
   });
 
   test('el nombre se guarda y se puede empezar', async ({ page }) => {
-    await page.getByPlaceholder('¿Cómo te llamas?').fill('TestPlayer');
-    await page.getByRole('button', { name: 'Empezar el Quiz' }).click();
+    await nameInput(page).fill('TestPlayer');
+    await startBtn(page).click();
     await expect(errorAlert(page)).not.toBeVisible();
   });
 });

@@ -206,6 +206,7 @@ export default function StartScreen({ onStart, onAddQuestion, onLeaderboard }: S
                   </label>
                   <input
                     id={inputId}
+                    data-testid="name-input"
                     type="text"
                     value={name}
                     onChange={(e) => { setName(e.target.value); setError(''); }}
@@ -236,6 +237,7 @@ export default function StartScreen({ onStart, onAddQuestion, onLeaderboard }: S
                   variant="primary"
                   size="lg"
                   fullWidth
+                  data-testid="start-btn"
                   icon={<Zap className="h-4 w-4" />}
                   type="submit"
                 >
