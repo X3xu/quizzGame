@@ -67,23 +67,25 @@ export default function Home() {
     setScreen('quiz');
   }, []);
 
-  const handleFinish = useCallback((
+  const handleFinish = useCallback(async (
     score:     number,
     maxStreak: number,
     answers:   AnswerRecord[],
     duration:  number,
   ) => {
-    const correct     = answers.filter((a) => a.correct).length;
-    const percentage  = Math.round((correct / answers.length) * 100);
-    const rankPosition = getRankPosition(score);
+    const correct    = answers.filter((a) => a.correct).length;
+    const percentage = Math.round((correct / answers.length) * 100);
 
-    const saved = saveRanking({
-      name: playerName, avatar, score,
-      totalQuestions: answers.length, percentage,
-      streak: maxStreak, duration,
-    });
+    // Save and compute rank in parallel — show results immediately, even if save fails.
+    const [saved, rankPosition] = await Promise.allSettled([
+      saveRanking({ name: playerName, avatar, score, totalQuestions: answers.length, percentage, streak: maxStreak, duration }),
+      getRankPosition(score),
+    ]);
 
-    setResult({ score, maxStreak, answers, duration, rankPosition, savedId: saved.id });
+    const savedId      = saved.status      === 'fulfilled' ? saved.value.id          : '';
+    const rankPos      = rankPosition.status === 'fulfilled' ? rankPosition.value    : 1;
+
+    setResult({ score, maxStreak, answers, duration, rankPosition: rankPos, savedId });
     setScreen('results');
   }, [playerName, avatar]);
 

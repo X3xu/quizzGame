@@ -2,17 +2,17 @@
 
 import { useEffect, useId, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, Flame, Target, Trash2, Trophy } from 'lucide-react';
-import { RankingEntry } from '@/lib/types';
-import { clearRankings, getRankings } from '@/lib/rankings';
+import { ArrowLeft, Clock, Flame, Loader2, Target, Trophy } from 'lucide-react';
+import type { RankingEntry } from '@/lib/types';
+import { getRankings } from '@/lib/rankings';
+import { getPlayerId } from '@/lib/multiplayer';
 import Button   from './ui/Button';
 import Card     from './ui/Card';
-import Modal    from './ui/Modal';
 import AppShell from './AppShell';
 
 interface LeaderboardProps {
   onBack:       () => void;
-  highlightId?: string;
+  highlightId?: string;   // id of the entry just saved (to highlight it)
 }
 
 const MEDALS: Record<1 | 2 | 3, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -57,16 +57,23 @@ function PodiumCard({ entry, rank, highlighted }: PodiumCardProps) {
 }
 
 export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
-  const [rankings,     setRankings]     = useState<RankingEntry[]>([]);
-  const [confirmClear, setConfirmClear] = useState(false);
-  const modalTitleId = useId();
+  const [rankings, setRankings] = useState<RankingEntry[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(false);
+  const playerId = getPlayerId();
+  const titleId  = useId();
 
-  useEffect(() => { setRankings(getRankings()); }, []);
+  useEffect(() => {
+    let alive = true;
+    getRankings()
+      .then((data) => { if (alive) { setRankings(data); setLoading(false); } })
+      .catch(() => { if (alive) { setError(true); setLoading(false); } });
+    return () => { alive = false; };
+  }, []);
 
-  function handleClear() {
-    clearRankings();
-    setRankings([]);
-    setConfirmClear(false);
+  // An entry is "mine" if it matches the saved id OR shares this browser's playerId.
+  function isHighlighted(entry: RankingEntry) {
+    return entry.id === highlightId || entry.playerId === playerId;
   }
 
   return (
@@ -77,8 +84,7 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
           {/* ── Header ── */}
           <div className="anim-fade-up mb-8 flex items-center gap-4">
             <Button
-              variant="ghost"
-              size="sm"
+              variant="ghost" size="sm"
               icon={<ArrowLeft className="h-4 w-4" />}
               onClick={onBack}
               aria-label="Volver atrás"
@@ -86,25 +92,37 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
               Volver
             </Button>
             <div className="flex-1 text-center">
-              <h1 className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-2xl font-black text-transparent">
+              <h1
+                id={titleId}
+                className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-2xl font-black text-transparent"
+              >
                 Ranking Global
               </h1>
               <p className="text-xs text-[var(--color-muted)]">
-                {rankings.length} {rankings.length === 1 ? 'jugador' : 'jugadores'}
+                {loading ? 'Cargando…' : `${rankings.length} ${rankings.length === 1 ? 'jugador' : 'jugadores'}`}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Trash2 className="h-4 w-4" />}
-              onClick={() => setConfirmClear(true)}
-              aria-label="Borrar ranking"
-              className="text-[var(--color-subtle)] hover:text-red-400"
-            />
+            {/* Spacer to balance the back button */}
+            <div className="w-[72px]" aria-hidden="true" />
           </div>
 
+          {/* ── Loading ── */}
+          {loading && (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-violet-400" aria-label="Cargando ranking" />
+            </div>
+          )}
+
+          {/* ── Error ── */}
+          {!loading && error && (
+            <Card padding="lg" className="py-16 text-center">
+              <p className="font-semibold text-[var(--color-muted)]">No se pudo cargar el ranking</p>
+              <p className="mt-1 text-sm text-[var(--color-subtle)]">Comprueba tu conexión e inténtalo de nuevo</p>
+            </Card>
+          )}
+
           {/* ── Empty state ── */}
-          {rankings.length === 0 && (
+          {!loading && !error && rankings.length === 0 && (
             <div className="anim-fade-up anim-delay-1">
               <Card padding="lg" className="py-16 text-center">
                 <Trophy className="mx-auto mb-3 h-12 w-12 text-[var(--color-subtle)]" aria-hidden="true" />
@@ -115,23 +133,23 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
           )}
 
           {/* ── Podium ── */}
-          {rankings.length >= 3 && (
+          {!loading && rankings.length >= 3 && (
             <section
               aria-label="Podio top 3"
               className="anim-fade-up anim-delay-1 mb-5 grid grid-cols-3 items-end gap-2.5"
             >
-              <PodiumCard entry={rankings[1]} rank={2} highlighted={rankings[1].id === highlightId} />
-              <PodiumCard entry={rankings[0]} rank={1} highlighted={rankings[0].id === highlightId} />
-              <PodiumCard entry={rankings[2]} rank={3} highlighted={rankings[2].id === highlightId} />
+              <PodiumCard entry={rankings[1]} rank={2} highlighted={isHighlighted(rankings[1])} />
+              <PodiumCard entry={rankings[0]} rank={1} highlighted={isHighlighted(rankings[0])} />
+              <PodiumCard entry={rankings[2]} rank={3} highlighted={isHighlighted(rankings[2])} />
             </section>
           )}
 
           {/* ── Full list ── */}
-          {rankings.length > 0 && (
-            <ol aria-label="Lista completa del ranking" className="anim-fade-up anim-delay-2">
+          {!loading && rankings.length > 0 && (
+            <ol aria-labelledby={titleId} className="anim-fade-up anim-delay-2">
               {rankings.map((entry, idx) => {
                 const rank          = idx + 1;
-                const isHighlighted = entry.id === highlightId;
+                const highlighted   = isHighlighted(entry);
                 const isTop         = rank <= 3;
                 const rs            = isTop ? RANK_STYLES[rank as 1 | 2 | 3] : null;
 
@@ -148,7 +166,7 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
                       className={[
                         'flex items-center gap-3 px-4 py-3',
                         rs  ? `border ${rs.border}` : '',
-                        isHighlighted ? 'ring-1 ring-violet-500/40' : '',
+                        highlighted ? 'ring-1 ring-violet-500/40' : '',
                       ].join(' ')}
                     >
                       <div className="w-7 shrink-0 text-center" aria-hidden="true">
@@ -160,7 +178,7 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-[var(--color-ink)]">
                           {entry.name}
-                          {isHighlighted && <span className="ml-1.5 text-xs font-normal text-violet-400">(tú)</span>}
+                          {highlighted && <span className="ml-1.5 text-xs font-normal text-violet-400">(tú)</span>}
                         </p>
                         <time dateTime={entry.date} className="text-[11px] text-[var(--color-subtle)]">
                           {formatDate(entry.date)}
@@ -195,28 +213,6 @@ export default function Leaderboard({ onBack, highlightId }: LeaderboardProps) {
           )}
       </div>
       </div>
-
-      <Modal
-        open={confirmClear}
-        onClose={() => setConfirmClear(false)}
-        title="Confirmar borrado de ranking"
-      >
-        <div className="text-center">
-          <div aria-hidden="true"
-               className="mx-auto mb-4 flex h-14 w-14 items-center justify-center
-                          rounded-2xl bg-red-500/10 border border-red-500/20">
-            <Trash2 className="h-6 w-6 text-red-400" />
-          </div>
-          <h2 className="mb-2 text-lg font-bold text-[var(--color-ink)]">¿Borrar el ranking?</h2>
-          <p className="mb-7 text-sm text-[var(--color-muted)]">
-            Se eliminarán todas las puntuaciones guardadas. Esta acción no se puede deshacer.
-          </p>
-          <div className="flex gap-3">
-            <Button variant="ghost"  size="md" fullWidth onClick={() => setConfirmClear(false)}>Cancelar</Button>
-            <Button variant="danger" size="md" fullWidth onClick={handleClear}>Borrar todo</Button>
-          </div>
-        </div>
-      </Modal>
     </AppShell>
   );
 }

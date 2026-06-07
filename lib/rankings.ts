@@ -1,36 +1,33 @@
-import { RankingEntry } from './types';
+import type { RankingEntry } from './types';
+import { getPlayerId } from './multiplayer';
 
-const STORAGE_KEY = 'brainwave_rankings';
-
-export function getRankings(): RankingEntry[] {
-  if (typeof window === 'undefined') return [];
+export async function getRankings(): Promise<RankingEntry[]> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const res = await fetch('/api/rankings');
+    if (!res.ok) return [];
+    const { rankings } = await res.json();
+    return rankings ?? [];
   } catch {
     return [];
   }
 }
 
-export function saveRanking(entry: Omit<RankingEntry, 'id' | 'date'>): RankingEntry {
-  const rankings = getRankings();
-  const newEntry: RankingEntry = {
-    ...entry,
-    id: crypto.randomUUID(),
-    date: new Date().toISOString(),
-  };
-  const updated = [newEntry, ...rankings]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 50);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  return newEntry;
+export async function saveRanking(
+  entry: Omit<RankingEntry, 'id' | 'date'>,
+): Promise<{ id: string; date: string }> {
+  const res = await fetch('/api/rankings/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...entry, playerId: getPlayerId() }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error ?? 'No se pudo guardar la puntuación');
+  }
+  return res.json();
 }
 
-export function clearRankings(): void {
-  localStorage.removeItem(STORAGE_KEY);
-}
-
-export function getRankPosition(score: number): number {
-  const rankings = getRankings();
-  return rankings.filter(r => r.score > score).length + 1;
+export async function getRankPosition(score: number): Promise<number> {
+  const rankings = await getRankings();
+  return rankings.filter((r) => r.score > score).length + 1;
 }

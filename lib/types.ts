@@ -21,6 +21,7 @@ export interface RankingEntry {
   streak: number;
   date: string;
   duration: number; // seconds
+  playerId?: string; // stable browser UUID — used to highlight the current player's row
 }
 
 export interface GameState {
