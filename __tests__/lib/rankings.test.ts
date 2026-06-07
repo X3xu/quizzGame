@@ -73,7 +73,7 @@ describe('saveRanking', () => {
     });
 
     expect(result).toEqual(responseData);
-    expect(fetchMock).toHaveBeenCalledWith('/api/rankings/save', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('/api/rankings', expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     }));
@@ -94,31 +94,28 @@ describe('saveRanking', () => {
 });
 
 describe('getRankPosition', () => {
-  it('returns 1 when the score is the highest', async () => {
+  it('returns the position from the API response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ rankings: [mockEntry({ score: 500 }), mockEntry({ score: 300 })] }),
+      json: async () => ({ position: 1 }),
     }));
     expect(await getRankPosition(1000)).toBe(1);
   });
 
-  it('returns correct position when other players have higher scores', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        rankings: [
-          mockEntry({ score: 2000 }),
-          mockEntry({ score: 1500 }),
-          mockEntry({ score: 1000 }),
-        ],
-      }),
-    }));
-    // Score 1200 → 2 players above (2000, 1500), so position = 3
-    expect(await getRankPosition(1200)).toBe(3);
+  it('uses the ?position_for_score query param', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ position: 3 }) });
+    vi.stubGlobal('fetch', fetchMock);
+    await getRankPosition(1200);
+    expect(fetchMock).toHaveBeenCalledWith('/api/rankings?position_for_score=1200');
   });
 
-  it('returns 1 when the rankings are empty', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rankings: [] }) }));
+  it('returns 1 when the response is not ok', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+    expect(await getRankPosition(100)).toBe(1);
+  });
+
+  it('returns 1 on network error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network')));
     expect(await getRankPosition(100)).toBe(1);
   });
 });

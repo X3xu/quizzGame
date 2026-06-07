@@ -1,4 +1,4 @@
-import type { RankingEntry } from './types';
+import type { RankingEntry, AnswerRecord } from './types';
 import { getPlayerId } from './multiplayer';
 
 export async function getRankings(): Promise<RankingEntry[]> {
@@ -14,11 +14,25 @@ export async function getRankings(): Promise<RankingEntry[]> {
 
 export async function saveRanking(
   entry: Omit<RankingEntry, 'id' | 'date'>,
+  answers?: AnswerRecord[],
 ): Promise<{ id: string; date: string }> {
-  const res = await fetch('/api/rankings/save', {
+  const body = {
+    name:           entry.name,
+    avatar:         entry.avatar,
+    score:          entry.score,
+    totalQuestions: entry.totalQuestions,
+    percentage:     entry.percentage,
+    streak:         entry.streak,
+    duration:       entry.duration,
+    deviceId:       getPlayerId(),
+    // answers enables server-side anti-cheat validation
+    answers: (answers ?? []).map((a) => ({ correct: a.correct, timeSpent: a.timeSpent })),
+  };
+
+  const res = await fetch('/api/rankings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...entry, playerId: getPlayerId() }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -28,6 +42,12 @@ export async function saveRanking(
 }
 
 export async function getRankPosition(score: number): Promise<number> {
-  const rankings = await getRankings();
-  return rankings.filter((r) => r.score > score).length + 1;
+  try {
+    const res = await fetch(`/api/rankings?position_for_score=${score}`);
+    if (!res.ok) return 1;
+    const { position } = await res.json();
+    return position ?? 1;
+  } catch {
+    return 1;
+  }
 }

@@ -78,7 +78,7 @@ export default function Home() {
 
     // Save and compute rank in parallel — show results immediately, even if save fails.
     const [saved, rankPosition] = await Promise.allSettled([
-      saveRanking({ name: playerName, avatar, score, totalQuestions: answers.length, percentage, streak: maxStreak, duration }),
+      saveRanking({ name: playerName, avatar, score, totalQuestions: answers.length, percentage, streak: maxStreak, duration }, answers),
       getRankPosition(score),
     ]);
 

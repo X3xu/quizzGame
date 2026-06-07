@@ -294,6 +294,7 @@ export default function QuizGame({ questions, playerName, avatar, onFinish }: Qu
                         key={option}
                         type="button"
                         data-state={optState}
+                        data-testid={`answer-option-${i}`}
                         className="answer-option"
                         onClick={() => handleAnswer(option)}
                         disabled={state.phase !== 'idle'}

@@ -8,7 +8,8 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
-    exclude: ['node_modules/**', '.next/**'],
+    include: ['__tests__/**/*.test.{ts,tsx}', 'tests/unit/**/*.test.{ts,tsx}'],
+    exclude: ['node_modules/**', '.next/**', 'e2e/**'],
     coverage: {
       provider: 'v8',
       include: ['lib/**', 'app/api/**', 'components/**'],
