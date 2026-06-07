@@ -40,3 +40,57 @@ export interface AnswerRecord {
   correct: boolean;
   timeSpent: number;
 }
+
+/* ─── Multiplayer (1v1) ──────────────────────────────────────────────────── */
+
+export type MatchStatus = 'waiting' | 'playing' | 'finished' | 'cancelled';
+export type MatchRole   = 'host' | 'guest';
+export type RoundWinner = 'host' | 'guest' | 'tie' | null;
+
+/** A question as sent to the browser in a match — NEVER includes the answer. */
+export interface MatchQuestion {
+  id:         number;
+  question:   string;
+  options:    string[];
+  category:   Category;
+  difficulty: Difficulty;
+}
+
+/** Per-player outcome of a single resolved round. */
+export interface RoundPlayerResult {
+  selected: string;
+  correct:  boolean;
+  timeMs:   number;
+}
+
+/** Result of the round that just resolved — drives the synced reveal. */
+export interface LastRound {
+  round:         number;
+  correctAnswer: string;
+  host:          RoundPlayerResult | null;
+  guest:         RoundPlayerResult | null;
+  winner:        RoundWinner;
+}
+
+/** Public match state, as read by the browser (no correct answers). */
+export interface MatchState {
+  id:             string;
+  status:         MatchStatus;
+  questions:      MatchQuestion[];
+  totalRounds:    number;
+  currentRound:   number;
+  roundStartedAt: string | null;
+  roundDeadline:  string | null;
+  host:  MatchPlayer;
+  guest: MatchPlayer | null;
+  lastRound: LastRound | null;
+  winner: RoundWinner;
+  rematchId: string | null;
+}
+
+export interface MatchPlayer {
+  id:     string;
+  name:   string;
+  avatar: string;
+  score:  number;
+}

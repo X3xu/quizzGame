@@ -35,7 +35,7 @@ const CATEGORY_MAP: Record<string, Category> = {
   general:     'science', // fallback
 };
 
-function dbToQuestion(q: DbQuestion, idx: number): Question {
+export function dbToQuestion(q: DbQuestion, idx: number): Question {
   return {
     id:            idx,
     question:      q.question,
