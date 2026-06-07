@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import StartScreen       from '@/components/StartScreen';
 import QuizGame          from '@/components/QuizGame';
@@ -11,6 +12,7 @@ import { AnswerRecord, Question } from '@/lib/types';
 import { getRandomQuestions }    from '@/lib/questions';
 import { getQuestionsForGame }   from '@/lib/db-questions';
 import { saveRanking, getRankPosition } from '@/lib/rankings';
+import { createMatch, savePlayerProfile } from '@/lib/multiplayer';
 
 type Screen = 'start' | 'quiz' | 'results' | 'leaderboard' | 'addQuestion';
 
@@ -24,12 +26,28 @@ interface GameResult {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [screen,     setScreen]     = useState<Screen>('start');
   const [playerName, setPlayerName] = useState('');
   const [avatar,     setAvatar]     = useState('🧠');
   const [questions,  setQuestions]  = useState<Question[]>([]);
   const [result,     setResult]     = useState<GameResult | null>(null);
   const [loading,    setLoading]    = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('Cargando preguntas…');
+
+  const handleMultiplayer = useCallback(async (name: string, av: string) => {
+    setLoadingMsg('Creando sala…');
+    setLoading(true);
+    try {
+      savePlayerProfile({ name, avatar: av });
+      const { match } = await createMatch(name, av);
+      router.push(`/m/${match.id}`);
+    } catch {
+      setLoading(false);
+      setLoadingMsg('Cargando preguntas…');
+      alert('No se pudo crear la sala. Revisa que Supabase esté configurado.');
+    }
+  }, [router]);
 
   const handleStart = useCallback(async (name: string, av: string) => {
     setPlayerName(name);
@@ -49,23 +67,25 @@ export default function Home() {
     setScreen('quiz');
   }, []);
 
-  const handleFinish = useCallback((
+  const handleFinish = useCallback(async (
     score:     number,
     maxStreak: number,
     answers:   AnswerRecord[],
     duration:  number,
   ) => {
-    const correct     = answers.filter((a) => a.correct).length;
-    const percentage  = Math.round((correct / answers.length) * 100);
-    const rankPosition = getRankPosition(score);
+    const correct    = answers.filter((a) => a.correct).length;
+    const percentage = Math.round((correct / answers.length) * 100);
 
-    const saved = saveRanking({
-      name: playerName, avatar, score,
-      totalQuestions: answers.length, percentage,
-      streak: maxStreak, duration,
-    });
+    // Save and compute rank in parallel — show results immediately, even if save fails.
+    const [saved, rankPosition] = await Promise.allSettled([
+      saveRanking({ name: playerName, avatar, score, totalQuestions: answers.length, percentage, streak: maxStreak, duration }),
+      getRankPosition(score),
+    ]);
 
-    setResult({ score, maxStreak, answers, duration, rankPosition, savedId: saved.id });
+    const savedId      = saved.status      === 'fulfilled' ? saved.value.id          : '';
+    const rankPos      = rankPosition.status === 'fulfilled' ? rankPosition.value    : 1;
+
+    setResult({ score, maxStreak, answers, duration, rankPosition: rankPos, savedId });
     setScreen('results');
   }, [playerName, avatar]);
 
@@ -88,7 +108,7 @@ export default function Home() {
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-[var(--color-canvas)]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
-        <p className="text-sm text-[var(--color-muted)]">Cargando preguntas…</p>
+        <p className="text-sm text-[var(--color-muted)]">{loadingMsg}</p>
       </div>
     );
   }
@@ -100,6 +120,8 @@ export default function Home() {
           key="start"
           onStart={handleStart}
           onAddQuestion={() => setScreen('addQuestion')}
+          onLeaderboard={() => setScreen('leaderboard')}
+          onMultiplayer={handleMultiplayer}
         />
       )}
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useId, useState } from 'react';
-import { Brain, Clock, Loader2, Plus, RefreshCw, Trophy, Zap } from 'lucide-react';
+import { Brain, Clock, Loader2, Plus, RefreshCw, Swords, Trophy, Zap } from 'lucide-react';
 import { AVATARS } from '@/lib/questions';
 import AppShell from './AppShell';
 import Button   from './ui/Button';
@@ -10,6 +10,8 @@ import Card     from './ui/Card';
 interface StartScreenProps {
   onStart:       (name: string, avatar: string) => void;
   onAddQuestion: () => void;
+  onLeaderboard: () => void;
+  onMultiplayer: (name: string, avatar: string) => void;
 }
 
 const FEATURES = [
@@ -18,7 +20,7 @@ const FEATURES = [
   { icon: Trophy, label: 'Ranking global', sublabel: 'compite con todos',       color: 'text-amber-400'  },
 ] as const;
 
-export default function StartScreen({ onStart, onAddQuestion }: StartScreenProps) {
+export default function StartScreen({ onStart, onAddQuestion, onLeaderboard, onMultiplayer }: StartScreenProps) {
   const [name,        setName]        = useState('');
   const [avatar,      setAvatar]      = useState(AVATARS[0]);
   const [error,       setError]       = useState('');
@@ -29,15 +31,20 @@ export default function StartScreen({ onStart, onAddQuestion }: StartScreenProps
   const errorId       = useId();
   const avatarGroupId = useId();
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  /** Require a name, then run the given action with it. */
+  function withName(action: (name: string, avatar: string) => void) {
     const trimmed = name.trim();
     if (!trimmed) {
       setError('Escribe tu nombre para continuar');
       document.getElementById(inputId)?.focus();
       return;
     }
-    onStart(trimmed, avatar);
+    action(trimmed, avatar);
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    withName(onStart);
   }
 
   async function handleGenerate() {
@@ -224,6 +231,27 @@ export default function StartScreen({ onStart, onAddQuestion }: StartScreenProps
                 >
                   Empezar el Quiz
                 </Button>
+
+                {/* ── Ranking global + Multiplayer ── */}
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    icon={<Trophy className="h-4 w-4" />}
+                    onClick={onLeaderboard}
+                  >
+                    Ranking global
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    icon={<Swords className="h-4 w-4" />}
+                    onClick={() => withName(onMultiplayer)}
+                    className="border-violet-500/40 text-violet-300 hover:bg-violet-500/10"
+                  >
+                    Multiplayer
+                  </Button>
+                </div>
               </form>
             </Card>
           </div>
