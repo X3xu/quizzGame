@@ -54,7 +54,7 @@ describe('resolveRoundIfReady — status guard', () => {
     await resolveRoundIfReady('match-1');
 
     // Only the 'match' table should have been touched — not 'match_answer' or 'match_key'
-    const queriedTables: string[] = mockFrom.mock.calls.map(([t]: [string]) => t);
+    const queriedTables: string[] = mockFrom.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(queriedTables).not.toContain('match_answer');
     expect(queriedTables).not.toContain('match_key');
   });
@@ -77,7 +77,7 @@ describe('resolveRoundIfReady — status guard', () => {
 
     await resolveRoundIfReady('match-2');
 
-    const queriedTables: string[] = mockFrom.mock.calls.map(([t]: [string]) => t);
+    const queriedTables: string[] = mockFrom.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(queriedTables).not.toContain('match_answer');
   });
 });
